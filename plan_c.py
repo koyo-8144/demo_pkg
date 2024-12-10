@@ -7,8 +7,12 @@ from moveit_msgs.msg import Constraints
 import paho.mqtt.client as mqtt
  
 # Define the broker address and port
-BROKER_ADDRESS = "172.22.247.120"
-BROKER_PORT = 1883
+# BROKER_ADDRESS = "172.22.247.120"
+# BROKER_PORT = 1883
+BROKER_ADDRESS = "172.22.247.109"
+BROKER_PORT = 15672
+
+
 
 class GraspPlannerNode():
     def __init__(self):
@@ -70,6 +74,7 @@ class GraspPlannerNode():
         if rc == 0:
             print("Connected to Mosquitto broker!")
             client.subscribe("robot/arrival")
+            print("Waiting for message ....")
         else:
             print(f"Failed to connect, return code {rc}")
 
@@ -120,9 +125,9 @@ class GraspPlannerNode():
         rospy.loginfo("Starting grasp planning...")
         rospy.loginfo("Moving to start position")
         self.go_sp()
-        self.receive_message()
+        # self.receive_message()
         self.execute_grasp_sequence()
-        self.send_message()
+        # self.send_message()
 
     def execute_grasp_sequence(self):
         """
@@ -134,6 +139,7 @@ class GraspPlannerNode():
         rospy.loginfo('Starting grasp sequence')
 
         self.object = "banana"
+
 
         if self.object == "banana":
             # 1. Grasp the object
@@ -154,6 +160,18 @@ class GraspPlannerNode():
             width = 0.06
             self.gripper_move(3.6 * width)
         
+            self.go_safepos()
+
+        elif self.object == "drink":
+
+            # 1. Grasp the object
+            self.grasp_drink()
+
+            # 3. Move gripper based on the grasp width
+            width = 0.06
+            self.gripper_move(3.6 * width)
+        
+            self.go_safepos()
 
         # 4. Place the object at the target location
         self.place_obj()
@@ -165,7 +183,7 @@ class GraspPlannerNode():
 
     def grasp_banana(self):
 
-        self.arm_group.set_joint_value_target([0.2798843821296595, -1.6737988756436728, -0.014690529205094727, -1.5084218982719326, -1.4574298202479676, -1.2624938853052194])
+        self.arm_group.set_joint_value_target([0.2710410894139424, -1.670172715503421, -0.00410393123981212, -1.5096645292365638, -1.4751765931200378, -1.2731055169847494])
         self.arm_group.go(wait=True)
 
         # pose_goal =Pose()
@@ -187,9 +205,7 @@ class GraspPlannerNode():
     
     def grasp_orange(self):
 
-        self.arm_group.set_joint_value_target([0.2102248764447839, -1.4302261623450256,
-                                               0.5804596617164717, -1.5691638090466782,
-                                               -1.1348469763610671, -1.3617664107312315])
+        self.arm_group.set_joint_value_target([-0.4891768858768071, -1.482970067734045, 0.42527939552642646, -1.5665448564306939, -1.2400008267384104, -2.0606909345854794])
         self.arm_group.go(wait=True)
 
         # pose_goal =Pose()
@@ -209,8 +225,13 @@ class GraspPlannerNode():
         # # Note: there is no equivalent function for clear_joint_value_targets().
         # self.arm_group.clear_pose_targets()
     
+    def grasp_drink(self):
+
+        self.arm_group.set_joint_value_target([0.12061962577575984, -1.0196594002607426, 1.7749393422582664, -2.262562273639012, -0.32320016462757994, 0.22415667105531542])
+        self.arm_group.go(wait=True)
+    
     def go_safepos(self):
-        self.arm_group.set_joint_value_target([0.8119935553074156, -1.2418224289240252, 0.08824464166810259, -1.583578434762841, -1.7720929556851894, -0.7635506550788742])
+        self.arm_group.set_joint_value_target([0.9311649540823903, -0.8526062292989058, 1.1426484404583457, -1.475054620342112, -1.1986110423408354, -0.6476030128034402])
         self.arm_group.go(wait=True)
 
         # waypoint_pose =Pose()
@@ -349,8 +370,11 @@ class GraspPlannerNode():
                                                -2.114137663337607, -1.6563429070772748])
         self.arm_group.go(wait=True)
 
+        self.gripper_move(0.6)
+
     def gripper_move(self, width):
         gripper_joints_state = self.gripper_group.get_current_joint_values()
+        print("Current Gripper State: ", gripper_joints_state)
         gripper_joints_state[2] = width
         self.gripper_group.set_joint_value_target(gripper_joints_state)
         self.gripper_group.go()
