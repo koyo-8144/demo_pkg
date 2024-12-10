@@ -1,20 +1,12 @@
 #!/usr/bin/env python3
-
-import numpy as np
-import threading
-import tf
 import rospy
 import moveit_commander
 from geometry_msgs.msg import PoseStamped, Pose
-from std_msgs.msg import String  # Import the String message for communication
 
-
+CONSTANT_TARGET_UPDATE = 1
 
 class GraspPlannerNode():
     def __init__(self):
-        # Initialize parameters
-        self.init_params()    
-
         # Initialize planning group
         self.robot = moveit_commander.robot.RobotCommander()
         self.arm_group = moveit_commander.move_group.MoveGroupCommander("arm")
@@ -24,65 +16,35 @@ class GraspPlannerNode():
         self.arm_group.set_max_acceleration_scaling_factor(1)
         self.arm_group.set_max_velocity_scaling_factor(1)
 
+        # self.listener = tf.TransformListener()
+        # # We add this sleep to allow the listener time to be initialised
+        # # Otherwise the lookupTransform could give not found frame issue.
+        # time.sleep(1)
+
+        # Subscribe to the object position topic
+        self.obj_pose_sub = rospy.Subscriber("/object_position_pose", Pose, self.pose_callback)
         # Targe grasp position
-        # self.target_pose = PoseStamped()
         self.target_pose = PoseStamped()
-        self.target_pose.pose.position.x = 0
+        self.target_pose_update = True
 
-        self.received_pose = False
 
-        # Go to start position immediately upon initialization
-        rospy.loginfo("Moving to start position")
-        self.go_sp()
+    ####### pose_callback from listener #######
 
-    def init_params(self):
-        pass
-
-    ####### lister for transformation between base_link and grasp #######
-
-    # This is open-loop system so I do not need to run constantly
-    def lister_callback(self):
-        listener = tf.TransformListener()
-
-        while not rospy.is_shutdown():
-            try:
-                # Lookup transform for the currently selected object
-                # base_link → d435_depth_optical_frame → grasp
-                (trans, rot) = listener.lookupTransform('base_link', '/grasp', rospy.Time(0))
-
-                # Once we have the transformation, exit the loop
-                print("Translation: ", trans)
-                print("Rotation: ", rot)
-
-                self.target_pose.pose.position.x = trans[0]
-                self.target_pose.pose.position.y = trans[1]
-                self.target_pose.pose.position.z = trans[2]
-
-                self.target_pose.pose.orientation.x = rot[0]
-                self.target_pose.pose.orientation.y = rot[1]
-                self.target_pose.pose.orientation.z = rot[2]
-                self.target_pose.pose.orientation.w = rot[3]
-
-                if self.target_pose.pose.position.x != 0.0 and self.target_pose.pose.position.y != 0.0 and self.target_pose.pose.position.z != 0.0:
-                    # Set the flag to indicate pose has been received
-                    self.received_pose = True
-                    rospy.loginfo("Pose received: {}".format(self.target_pose))
-                    # Break the loop after getting the values
-                    break  # Exits the loop after the first successful transformation retrieval
-
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                continue
-
+    def pose_callback(self, msg):
+        """
+        This function gets called whenever a message is received on /objection_position_pose topic.
+        It updates the object pose and sets find_enable to False indicating that the object was found.
+        """
+        if self.target_pose_update:
+            self.target_pose = msg
+        
 
     ####### grasp planning #######
 
     def start_grasp_planning(self):
-        rospy.loginfo("Waiting for pose...")
-        # Wait for pose to be received
-        while not self.received_pose and not rospy.is_shutdown():
-            rospy.sleep(0.1)
-
-        rospy.loginfo("Pose received. Starting grasp planning...")
+        rospy.loginfo("Starting grasp planning...")
+        rospy.loginfo("Moving to start position")
+        self.go_sp()
         self.execute_grasp_sequence()
 
     def execute_grasp_sequence(self):
@@ -100,7 +62,7 @@ class GraspPlannerNode():
 
         # 2. Read grasp width from gg_values.txt
         filepath = "/home/chart-admin/koyo_ws/langsam_grasp_ws/data/gg_values.txt"
-        width = self.read_gg_values(filepath)
+        width = self.read_gripper_width(filepath)
 
         # 3. Move gripper based on the grasp width
         self.gripper_move(3.6 * width)
@@ -121,11 +83,16 @@ class GraspPlannerNode():
         # self.target_pose.pose.position.x -= 0.055
         # self.target_pose.pose.position.z += 0.05
 
+        if CONSTANT_TARGET_UPDATE:
+            self.target_pose_update = True
+        else:
+            self.target_pose_update = False
+
         self.arm_group.set_pose_target(self.target_pose.pose)
         self.arm_group.go()
-        self.plan_cartesian_path(self.target_pose.pose)
+        # self.plan_cartesian_path(self.target_pose.pose)
         # self.target_pose.pose.position.z += 0.05
-        self.plan_cartesian_path(self.target_pose.pose)
+        # self.plan_cartesian_path(self.target_pose.pose)
         self.arm_group.set_pose_target(self.target_pose.pose)
         self.arm_group.go()
 
@@ -159,7 +126,7 @@ class GraspPlannerNode():
         except Exception as e:
             rospy.logerr("Error in Cartesian path planning: %s", str(e))
 
-    def read_gg_values(self, filepath):
+    def read_gripper_width(self, filepath):
         with open(filepath, 'r') as file:
             lines = file.readlines()
 
@@ -196,14 +163,7 @@ class GraspPlannerNode():
 
 def main():
     rospy.init_node('grasp_planning', anonymous=True)
-    rospy.loginfo('Start Grasp Demo')
     grasp_planner_node = GraspPlannerNode()
-
-    # Start the listener in a separate thread
-    rospy.loginfo('Starting listener for grasp planning ...')
-    listener_thread = threading.Thread(target=grasp_planner_node.lister_callback)
-    listener_thread.start()
-
     grasp_planner_node.start_grasp_planning()
     rospy.spin()
  
