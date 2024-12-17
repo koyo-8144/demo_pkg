@@ -8,15 +8,15 @@ import io
 from std_msgs.msg import String
 from geometry_msgs.msg import TransformStamped
 
-ROTATE = 0
+ROTATE = 1
 
 
 class MultiTfBroadcast:
     def __init__(self):
-        rospy.init_node('static_tf2_broadcaster')
+        rospy.init_node('broadcaster')
 
         # Load gg_values.txt from a local file path
-        self.filepath = "/home/chart-admin/koyo_ws/langsam_grasp_ws/data/gg_values.txt"
+        self.filepath = "/home/chart-admin/koyo_ws/graspnet/graspnet-baseline/output/gg_values.txt"
 
         # # Ensure the file exists before proceeding
         # if not os.path.exists(filepath):
@@ -110,7 +110,6 @@ class MultiTfBroadcast:
 
 
 def main():
-    rospy.init_node('publisher_of_tf_node', anonymous=True)
     multi_tf_broadcast_obj = MultiTfBroadcast()
     try:
         multi_tf_broadcast_obj.start()

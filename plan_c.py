@@ -9,8 +9,12 @@ import paho.mqtt.client as mqtt
 # Define the broker address and port
 # BROKER_ADDRESS = "172.22.247.120"
 # BROKER_PORT = 1883
-BROKER_ADDRESS = "172.22.247.109"
-BROKER_PORT = 15672
+# BROKER_ADDRESS = "192.168.8.116"
+# BROKER_PORT = 1883
+BROKER_ADDRESS = "192.168.153.222"
+BROKER_PORT = 1883
+# BROKER_ADDRESS = "172.22.247.109"
+# BROKER_PORT = 15672
 
 
 
@@ -125,9 +129,10 @@ class GraspPlannerNode():
         rospy.loginfo("Starting grasp planning...")
         rospy.loginfo("Moving to start position")
         self.go_sp()
-        # self.receive_message()
+        self.receive_message()
+        input("Waiting for input ....")
         self.execute_grasp_sequence()
-        # self.send_message()
+        self.send_message()
 
     def execute_grasp_sequence(self):
         """
@@ -138,8 +143,7 @@ class GraspPlannerNode():
 
         rospy.loginfo('Starting grasp sequence')
 
-        self.object = "banana"
-
+        # self.object = "orange"
 
         if self.object == "banana":
             # 1. Grasp the object
@@ -232,6 +236,7 @@ class GraspPlannerNode():
     
     def go_safepos(self):
         self.arm_group.set_joint_value_target([0.9311649540823903, -0.8526062292989058, 1.1426484404583457, -1.475054620342112, -1.1986110423408354, -0.6476030128034402])
+
         self.arm_group.go(wait=True)
 
         # waypoint_pose =Pose()
@@ -321,7 +326,8 @@ class GraspPlannerNode():
         return width
 
     def place_obj(self):
-        self.arm_group.set_joint_value_target([1.3848293857713174, -2.001753315449263, -1.031860406478831, -1.8942212622184798, -1.4528502484374677, -1.0467149864070748])
+        # self.arm_group.set_joint_value_target([1.3848293857713174, -2.001753315449263, -1.031860406478831, -1.8942212622184798, -1.4528502484374677, -1.0467149864070748])
+        self.arm_group.set_joint_value_target([1.2601399172176984, -1.8302055275156999, -0.6814011901976365, -1.781343712047689, -1.2712748600514292, -0.9486067950096464])
         self.arm_group.go()
 
         # target_pose =Pose()

@@ -3,7 +3,7 @@ import rospy
 import moveit_commander
 from geometry_msgs.msg import PoseStamped, Pose
 
-CONSTANT_TARGET_UPDATE = 1
+CONSTANT_TARGET_UPDATE = 0
 
 class GraspPlannerNode():
     def __init__(self):
@@ -26,6 +26,24 @@ class GraspPlannerNode():
         # Targe grasp position
         self.target_pose = PoseStamped()
         self.target_pose_update = True
+
+        # We can get the name of the reference frame for this robot:
+        planning_frame = self.arm_group.get_planning_frame()
+        print("============ Planning frame: %s" % planning_frame)
+
+        # We can also print the name of the end-effector link for this group:
+        eef_link = self.arm_group.get_end_effector_link()
+        print("============ End effector link: %s" % eef_link)
+
+        # We can get a list of all the groups in the robot:
+        group_names = self.robot.get_group_names()
+        print("============ Available Planning Groups:", self.robot.get_group_names())
+
+        # Sometimes for debugging it is useful to print the entire state of the
+        # robot:
+        print("============ Printing robot state")
+        print(self.robot.get_current_state())
+        print("")
 
 
     ####### pose_callback from listener #######
@@ -61,7 +79,7 @@ class GraspPlannerNode():
         self.grasp_obj()
 
         # 2. Read grasp width from gg_values.txt
-        filepath = "/home/chart-admin/koyo_ws/langsam_grasp_ws/data/gg_values.txt"
+        filepath = "/home/chart-admin/koyo_ws/graspnet/graspnet-baseline/output/gg_values.txt"
         width = self.read_gripper_width(filepath)
 
         # 3. Move gripper based on the grasp width
@@ -78,22 +96,28 @@ class GraspPlannerNode():
         """
         Grasp object based on object detection.
         """
-        rospy.loginfo("Grasping object at position: {}".format(self.target_pose.pose.position))
+        # rospy.loginfo("Grasping object at position: {}".format(self.target_pose.pose.position))
+        rospy.loginfo("Type of self.target_pose: {}".format(type(self.target_pose)))
+
 
         # self.target_pose.pose.position.x -= 0.055
         # self.target_pose.pose.position.z += 0.05
+        self.target_pose.position.x -= 0.055
+        self.target_pose.position.z += 0.05
 
         if CONSTANT_TARGET_UPDATE:
             self.target_pose_update = True
         else:
             self.target_pose_update = False
 
-        self.arm_group.set_pose_target(self.target_pose.pose)
+        # self.arm_group.set_pose_target(self.target_pose.pose)
+        self.arm_group.set_pose_target(self.target_pose)
         self.arm_group.go()
         # self.plan_cartesian_path(self.target_pose.pose)
         # self.target_pose.pose.position.z += 0.05
         # self.plan_cartesian_path(self.target_pose.pose)
-        self.arm_group.set_pose_target(self.target_pose.pose)
+        # self.arm_group.set_pose_target(self.target_pose.pose)
+        self.arm_group.set_pose_target(self.target_pose)
         self.arm_group.go()
 
     def plan_cartesian_path(self, target_pose):
@@ -138,7 +162,8 @@ class GraspPlannerNode():
         return width
 
     def place_obj(self):
-        self.target_pose.pose.position.z += 0.07
+        # self.target_pose.pose.position.z += 0.07
+        self.target_pose.position.z += 0.07
         # self.plan_cartesian_path(self.target_pose.pose)
 
         self.arm_group.set_joint_value_target([-1.1923993012061151, 0.7290586635521652,
